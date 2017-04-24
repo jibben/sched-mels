@@ -1,13 +1,24 @@
 import random
 import heapq
+from pprint import pprint
 
+size_to_seated = {
+        2 : (1.1, 0.15),
+        3 : (1.2, 0.2),
+        4 : (1.25, 0.23),
+        5 : (1.4, 0.24),
+        6 : (1.6, 0.28),
+        7 : (1.65, 0.3),
+        8 : (2, 0.35),
+}
 
 def sample_seated_time(size):
-    return 9
+    mu, sigma = size_to_seated[size]
+    return random.normalvariate(mu, sigma) * 60
 
 
 def arrival_func(t):
-    return (4, 5 + t)
+    return (random.randint(2,4), 15 + t)
 
 
 # These are all of the algorithm classes for seating
@@ -29,11 +40,13 @@ class SeatWherever(object):
         pass
 
     def find_seats(self, to_seat, tables, t):
+        tables_used = set()
         pairings = []
         for party in to_seat:
             for table in tables:
-                if table[1] >= party[1]:
+                if table[1] >= party[1] and table[0] not in tables_used:
                     pairings.append(([table[0]], party))
+                    tables_used.add(table[0])
                     break
 
         return pairings
@@ -51,12 +64,11 @@ class RoundRobin(object):
 class Restaurant(object):
     ''' Restaurant object to keep track of tables'''
 
-    def __init__(self, sample_seated_time, tables=None, only_neighbors=False):
+    def __init__(self, tables=None, only_neighbors=False):
         if tables:
             self.tables = {t[0] : t[1:] + [False, None] for t in tables}
         else:
             self.tables = {}
-        self.sample_seated_time = sample_seated_time
         self.only_neighbors = only_neighbors
 
         self.table_heap = []
@@ -93,9 +105,7 @@ class Restaurant(object):
     def get_available_tables(self):
         return [[tid,] + self.tables[tid][0:3] for tid in self.tables if not self.tables[tid][3]]
 
-    def add_party(self, tids, party):
-        time = self.sample_seated_time(party[1])
-
+    def add_party(self, tids, party, t):
         assert sum([self.tables[tid][0] for tid in tids]) >= party[1], \
                 "Cannot seat party of size {} at tables {}".format(tids, party[1])
 
@@ -109,7 +119,7 @@ class Restaurant(object):
         for tid in tids:
             self.tables[tid][3] = True
             self.tables[tid][4] = party
-            heapq.heappush(self.table_heap, (time + party[2], tid, party))
+            heapq.heappush(self.table_heap, (party[2] + t, tid, party))
 
         return self.table_heap[0][0]
 
@@ -122,6 +132,7 @@ class Restaurant(object):
     def do_departure(self):
         t, tid, party = heapq.heappop(self.table_heap)
         self.tables[tid][3] = False
+        self.tables[tid][4] = None
 
         while self.table_heap and self.table_heap[0][2][0] == party[0]:
             t, tid, party = heapq.heappop(self.table_heap)
@@ -132,7 +143,7 @@ class Restaurant(object):
 
 
 
-def sim_night(restaurant, seater, arrival_func, t_max):
+def sim_night(restaurant, seater, arrival_func, seated_time_func, t_max):
     next_arrival = arrival_func(0)
     next_departure = restaurant.get_next_departure()
     to_seat = []
@@ -147,8 +158,13 @@ def sim_night(restaurant, seater, arrival_func, t_max):
         if next_arrival[1] <= next_departure:
             # update time
             t = next_arrival[1]
-            to_seat.append((pid, next_arrival[0], t))
-            party_log[pid] = [t, -1, -1]
+            to_seat.append((pid, next_arrival[0], seated_time_func(next_arrival[0])))
+            party_log[pid] = {
+                'party_size' : next_arrival[0],
+                'a_time' : t,
+                's_time' : -1,
+                'd_time' : -1,
+            }
             pid += 1
             # get next arrival
             next_arrival = arrival_func(t)
@@ -160,8 +176,8 @@ def sim_night(restaurant, seater, arrival_func, t_max):
             seated = set()
             for tid, party in pairings:
                 seated.add(party[0])
-                party_log[party[0]][1] = t
-                restaurant.add_party(tid, party)
+                party_log[party[0]]['s_time'] = t
+                restaurant.add_party(tid, party,t)
 
             next_departure = restaurant.get_next_departure()
             to_seat = [p for p in to_seat if p[0] not in seated]
@@ -174,7 +190,7 @@ def sim_night(restaurant, seater, arrival_func, t_max):
             # process departure and log info
             party = restaurant.do_departure()
 
-            party_log[party[0]][2] = t
+            party_log[party[0]]['d_time'] = t
 
             # process people who coculd be seated
             pairings = seater.find_seats(to_seat, restaurant.get_available_tables(), t)
@@ -183,8 +199,8 @@ def sim_night(restaurant, seater, arrival_func, t_max):
             seated = set()
             for tid, party in pairings:
                 seated.add(party[0])
-                party_log[party[0]][1] = t
-                restaurant.add_party(tid, party)
+                party_log[party[0]]['s_time'] = t
+                restaurant.add_party(tid, party, t)
 
             # update time of next departure
             next_departure = restaurant.get_next_departure()
@@ -198,7 +214,7 @@ def sim_night(restaurant, seater, arrival_func, t_max):
 
         # process departure and log info
         party = restaurant.do_departure()
-        party_log[party[0]][2] = t
+        party_log[party[0]]['d_time'] = t
 
         if to_seat:
             # process people who coculd be seated
@@ -208,8 +224,8 @@ def sim_night(restaurant, seater, arrival_func, t_max):
             seated = set()
             for tid, party in pairings:
                 seated.add(party[0])
-                party_log[party[0]][1] = t
-                restaurant.add_party(tid, party)
+                party_log[party[0]]['s_time'] = t
+                restaurant.add_party(tid, party, t)
 
             to_seat = [p for p in to_seat if p[0] not in seated]
 
@@ -223,11 +239,11 @@ def main():
     tables = [
         # table 0 can seat 4 people, is next to table 1, and in section 0
         [0, 4, [1], 0],
-        #[1, 4, [0,2], 1],
-        #[2, 4, [1], 2]
+        [1, 4, [0,2], 1],
+        [2, 2, [1], 2]
     ]
-    restaurant = Restaurant(sample_seated_time, tables)
-    print(sim_night(restaurant, seater, arrival_func, 11))
+    restaurant = Restaurant(tables)
+    pprint(sim_night(restaurant, seater, arrival_func, sample_seated_time, 120))
 
 
 if __name__ == '__main__':
