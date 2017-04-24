@@ -3,7 +3,7 @@ import heapq
 
 
 def sample_seated_time(size):
-    return 4
+    return 9
 
 
 def arrival_func(t):
@@ -109,7 +109,7 @@ class Restaurant(object):
         for tid in tids:
             self.tables[tid][3] = True
             self.tables[tid][4] = party
-            heapq.heappush(self.table_heap, (time, tid, party))
+            heapq.heappush(self.table_heap, (time + party[2], tid, party))
 
         return self.table_heap[0][0]
 
@@ -176,8 +176,8 @@ def sim_night(restaurant, seater, arrival_func, t_max):
 
             party_log[party[0]][2] = t
 
-            # update time of next departure
-            next_departure = restaurant.get_next_departure()
+            # process people who coculd be seated
+            pairings = seater.find_seats(to_seat, restaurant.get_available_tables(), t)
 
             # and we will try to seat parties and remove then from to_seat
             seated = set()
@@ -185,6 +185,9 @@ def sim_night(restaurant, seater, arrival_func, t_max):
                 seated.add(party[0])
                 party_log[party[0]][1] = t
                 restaurant.add_party(tid, party)
+
+            # update time of next departure
+            next_departure = restaurant.get_next_departure()
 
             to_seat = [p for p in to_seat if p[0] not in seated]
 
@@ -196,9 +199,6 @@ def sim_night(restaurant, seater, arrival_func, t_max):
         # process departure and log info
         party = restaurant.do_departure()
         party_log[party[0]][2] = t
-
-        # update time of next departure
-        next_departure = restaurant.get_next_departure()
 
         if to_seat:
             # process people who coculd be seated
@@ -213,14 +213,18 @@ def sim_night(restaurant, seater, arrival_func, t_max):
 
             to_seat = [p for p in to_seat if p[0] not in seated]
 
+        # update time of next departure
+        next_departure = restaurant.get_next_departure()
+
     return party_log
 
 def main():
     seater = SeatWherever()
     tables = [
+        # table 0 can seat 4 people, is next to table 1, and in section 0
         [0, 4, [1], 0],
-        [1, 4, [0,2], 1],
-        [2, 4, [1], 2]
+        #[1, 4, [0,2], 1],
+        #[2, 4, [1], 2]
     ]
     restaurant = Restaurant(sample_seated_time, tables)
     print(sim_night(restaurant, seater, arrival_func, 11))
