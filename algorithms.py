@@ -40,7 +40,7 @@ class TightSeating(SeatingAlgorithm):
         for party in to_seat:
             for table in tables:
                 if table[1] >= party[1] and \
-                        table[1] <= party[1] + 1 and \
+                        (table[1] <= party[1] + 1 or table[1] > 6) and \
                         table[0] not in tables_used:
                     pairings.append(([table[0]], party))
                     tables_used.add(table[0])
@@ -49,7 +49,78 @@ class TightSeating(SeatingAlgorithm):
         return pairings
 
 
+class SmallestAvailable(SeatingAlgorithm):
+
+    def __init__(self):
+        pass
+
+    def find_seats(self, to_seat, tables, t):
+        tables_used = set()
+        pairings = []
+
+        table_size = {}
+        for t in tables:
+            if t[1] not in table_sizes:
+                table_sizes[t[1]] = []
+
+            table_sizes[t[1]].append(t)
+
+        sizes = sorted(list(table_sizes.keys()))
+
+        table_sizes = {s : [t for t in tables if t[1] == s] for s in range(20)}
+
+        for party in to_seat:
+            seated = False
+            s_pos = 0
+            while not seated and s_pos < len(sizes):
+                for table in table_size[sizes[s_pos]]:
+                    if table[0] not in tables_used:
+                        pairings.append(([table[0]], party))
+                        tables_used.add(table[0])
+                        seated = True
+                        break
+                s_pos += 1
+
+        return pairings
+
+
 class RoundRobin(SeatingAlgorithm):
+
+    def __init__(self, tables):
+        self.max_section = 0
+        self.last_section = self.max_section
+
+        for t in tables:
+            if t[3] > self.max_section:
+                self.max_section = t[3]
+
+        self.max_section += 1
+
+    def find_seats(self, to_seat, tables, t):
+        table_section = {s : [] for s in range(self.max_section)}
+        for t in tables:
+            table_section[t[3]].append(t)
+
+        tables_used = set()
+        pairings = []
+
+        for party in to_seat:
+            seated = False
+            section = (self.last_section + 1) % (self.max_section)
+            while not seated and section != self.last_section:
+                for table in table_section[section]:
+                    if table[1] >= party[1] and table[0] not in tables_used:
+                        pairings.append(([table[0]], party))
+                        tables_used.add(table[0])
+                        seated = True
+                        self.last_section = section
+                        break
+                section = (section + 1) % (self.max_section)
+
+        return pairings
+
+
+class FewestPeople(SeatingAlgorithm):
 
     def __init__(self, tables):
         self.sections = []
@@ -76,7 +147,7 @@ class RoundRobin(SeatingAlgorithm):
                         pairings.append(([table[0]], party))
                         tables_used.add(table[0])
                         seated = True
-                        section[1] += 1
+                        section[1] += party[0]
                         self.sections.sort(key = lambda x : x[1])
                         break
                 s_pos += 1

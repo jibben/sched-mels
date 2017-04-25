@@ -116,17 +116,36 @@ def sim_night(restaurant, seater, arrival_func, seated_time_func, t_max):
 
     return party_log
 
+def calculate_metrics(results):
+    # number of parties
+    # number of people
+    # average wait time
+    num_people = 0
+    num_parties = 0
+    sum_wait_time = 0.0
+
+    for v in results.values():
+        num_parties += 1
+        num_people += v['party_size']
+        sum_wait_time += (v['s_time'] - v['a_time'])
+
+    return (num_parties, num_people, sum_wait_time / num_parties)
+
 def main():
     # to try a different algorithm, just repleace this seater with another
     # class - the class will only be called by seater.find_seats
     seater = SeatWherever()
     rr_seater = RoundRobin(TABLES)
+    tight_seater = TightSeating()
     restaurant = Restaurant(TABLES)
 
     #results = sim_night(restaurant, seater, arrival_func, sample_seated_time, 120)
     results = sim_night(restaurant, rr_seater, arrival_func, sample_seated_time, 120)
+    #results = sim_night(restaurant, tight_seater, arrival_func, sample_seated_time, 120)
 
     pprint(results)
+
+    print(calculate_metrics(results))
 
 
 if __name__ == '__main__':
