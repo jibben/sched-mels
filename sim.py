@@ -3,7 +3,7 @@ from pprint import pprint
 
 from constants import ARR_INTERVAL, OPEN_TIME, TABLES, SIZE_TO_SEATED, ARRIVAL_TO_SIZE
 from algorithms import SeatWherever, TightSeating, SmallestAvailable, RoundRobin
-from algorithms import SmallParties, FewestPeople
+from algorithms import SmallParties, FewestPeople, SmallestCombining
 from restaurant import Restaurant
 
 def get_size(u):
@@ -178,13 +178,15 @@ def main():
     #seater = RoundRobin(TABLES)
     #seater = SmallestAvailable()
     #seater = TightSeating()
-    seater = SmallParties()
+    #seater = SmallParties()
+    #seater = FewestPeople(TABLES)
+    seater = SmallestCombining(TABLES, 6)
 
     restaurant = Restaurant(TABLES)
 
     metrics = monte_carlo(restaurant, seater, arrival_func, sample_seated_time, OPEN_TIME)
 
-    print(metrics)
+    pprint(metrics)
 
 
 if __name__ == '__main__':
