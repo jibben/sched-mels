@@ -1,5 +1,8 @@
 # in minutes
-AVG_ARRIVAL_INTERVAL = 15
+ARR_INTERVAL = 2
+
+# in minutes
+OPEN_TIME = 360
 
 SIZE_TO_SEATED = { # in hours
         2 : (1.1, 0.15),
@@ -15,12 +18,12 @@ SIZE_TO_SEATED = { # in hours
 ARRIVAL_TO_SIZE = {
         0 : 0.0,
         1 : 0.0,
-        2 : 0.19,
+        2 : 0.24,
         3 : 0.46,
-        4 : 0.70,
-        5 : 0.80,
-        6 : 0.90,
-        7 : 0.96,
+        4 : 0.75,
+        5 : 0.85,
+        6 : 0.97,
+        7 : 0.98,
         8 : 1.0,
 }
 
