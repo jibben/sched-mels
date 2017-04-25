@@ -2,7 +2,10 @@ import random
 import heapq
 from pprint import pprint
 
-size_to_seated = {
+# in minutes
+AVG_ARRIVAL_INTERVAL = 15
+
+SIZE_TO_SEATED = { # in hours
         2 : (1.1, 0.15),
         3 : (1.2, 0.2),
         4 : (1.25, 0.23),
@@ -12,13 +15,45 @@ size_to_seated = {
         8 : (2, 0.35),
 }
 
+
+ARRIVAL_TO_SIZE = {
+        0 : 0.0,
+        1 : 0.0,
+        2 : 0.19,
+        3 : 0.46,
+        4 : 0.70,
+        5 : 0.80,
+        6 : 0.90,
+        7 : 0.96,
+        8 : 1.0,
+}
+
+TABLES = [
+    # table 0 can seat 4 people, is next to table 1, and in section 0
+    [0, 4, [1], 0],
+    [1, 4, [0,2], 1],
+    [2, 8, [1], 2]
+]
+
+
+def get_size(u):
+    assert 0.0 <= u and u <= 1.0, 'u must be between 0 and 1!'
+    for i in range(9):
+        if u <= ARRIVAL_TO_SIZE[i]:
+            return i
+
 def sample_seated_time(size):
-    mu, sigma = size_to_seated[size]
+    mu, sigma = SIZE_TO_SEATED[size]
     return random.normalvariate(mu, sigma) * 60
 
 
 def arrival_func(t):
-    return (random.randint(2,4), 15 + t)
+    u = random.random()
+    size = get_size(u)
+
+    time = random.expovariate(1.0 / AVG_ARRIVAL_INTERVAL)
+
+    return (size, time + t)
 
 
 # These are all of the algorithm classes for seating
@@ -235,15 +270,14 @@ def sim_night(restaurant, seater, arrival_func, seated_time_func, t_max):
     return party_log
 
 def main():
+    # to try a different algorithm, just repleace this seater with another
+    # class - the class will only be called by seater.find_seats
     seater = SeatWherever()
-    tables = [
-        # table 0 can seat 4 people, is next to table 1, and in section 0
-        [0, 4, [1], 0],
-        [1, 4, [0,2], 1],
-        [2, 2, [1], 2]
-    ]
-    restaurant = Restaurant(tables)
-    pprint(sim_night(restaurant, seater, arrival_func, sample_seated_time, 120))
+    restaurant = Restaurant(TABLES)
+
+    results = sim_night(restaurant, seater, arrival_func, sample_seated_time, 120)
+
+    pprint(results)
 
 
 if __name__ == '__main__':
