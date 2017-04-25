@@ -29,6 +29,26 @@ class SeatWherever(SeatingAlgorithm):
         return pairings
 
 
+class TightSeating(SeatingAlgorithm):
+
+    def __init__(self):
+        pass
+
+    def find_seats(self, to_seat, tables, t):
+        tables_used = set()
+        pairings = []
+        for party in to_seat:
+            for table in tables:
+                if table[1] >= party[1] and \
+                        table[1] <= party[1] + 1 and \
+                        table[0] not in tables_used:
+                    pairings.append(([table[0]], party))
+                    tables_used.add(table[0])
+                    break
+
+        return pairings
+
+
 class RoundRobin(SeatingAlgorithm):
 
     def __init__(self, tables):
