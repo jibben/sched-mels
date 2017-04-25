@@ -1,8 +1,9 @@
 import random
 from pprint import pprint
 
-from constants import AVG_ARRIVAL_INTERVAL, TABLES, SIZE_TO_SEATED, ARRIVAL_TO_SIZE
-from algorithms import SeatWherever, TightSeating, RoundRobin
+from constants import ARR_INTERVAL, OPEN_TIME, TABLES, SIZE_TO_SEATED, ARRIVAL_TO_SIZE
+from algorithms import SeatWherever, TightSeating, SmallestAvailable, RoundRobin
+from algorithms import SmallParties, FewestPeople
 from restaurant import Restaurant
 
 def get_size(u):
@@ -20,7 +21,7 @@ def arrival_func(t):
     u = random.random()
     size = get_size(u)
 
-    time = random.expovariate(1.0 / AVG_ARRIVAL_INTERVAL)
+    time = random.expovariate(1.0 / ARR_INTERVAL)
 
     return (size, time + t)
 
@@ -90,6 +91,7 @@ def sim_night(restaurant, seater, arrival_func, seated_time_func, t_max):
             to_seat = [p for p in to_seat if p[0] not in seated]
 
     # once the restaurant closes, we let everyone finish eating
+    # but we don't seat anyone else
     while not restaurant.is_empty():
         # update time
         t = next_departure
@@ -98,6 +100,7 @@ def sim_night(restaurant, seater, arrival_func, seated_time_func, t_max):
         party = restaurant.do_departure()
         party_log[party[0]]['d_time'] = t
 
+        '''
         if to_seat:
             # process people who coculd be seated
             pairings = seater.find_seats(to_seat, restaurant.get_available_tables(), t)
@@ -110,6 +113,7 @@ def sim_night(restaurant, seater, arrival_func, seated_time_func, t_max):
                 restaurant.add_party(tid, party, t)
 
             to_seat = [p for p in to_seat if p[0] not in seated]
+        '''
 
         # update time of next departure
         next_departure = restaurant.get_next_departure()
@@ -120,32 +124,67 @@ def calculate_metrics(results):
     # number of parties
     # number of people
     # average wait time
-    num_people = 0
-    num_parties = 0
+    metrics = {
+        'people_seated' : 0,
+        'parties_seated' : 0,
+        'avg_wait_time' : 0,
+        'people_dropped' : 0,
+        'parties_dropped' : 0
+    }
+
     sum_wait_time = 0.0
 
     for v in results.values():
-        num_parties += 1
-        num_people += v['party_size']
-        sum_wait_time += (v['s_time'] - v['a_time'])
+        if v['s_time'] == -1:
+            metrics['people_dropped'] += v['party_size']
+            metrics['parties_dropped'] += 1
+        else:
+            metrics['people_seated'] += v['party_size']
+            metrics['parties_seated'] += 1
+            sum_wait_time += (v['s_time'] - v['a_time'])
 
-    return (num_parties, num_people, sum_wait_time / num_parties)
+    metrics['avg_wait_time'] = sum_wait_time / metrics['people_seated']
+    return metrics
+
+
+def monte_carlo(restaurant, seater, arrival_func, sample_seated_time, t_max, n=100):
+    metrics = {
+        'people_seated' : 0,
+        'parties_seated' : 0,
+        'avg_wait_time' : 0,
+        'people_dropped' : 0,
+        'parties_dropped' : 0
+    }
+
+    for i in range(n):
+        results = sim_night(restaurant, seater, arrival_func, sample_seated_time, t_max)
+        met = calculate_metrics(results)
+
+        for k in metrics.keys():
+            metrics[k] += met[k]
+
+
+    for k, v in metrics.items():
+        metrics[k] = v / n
+
+    return metrics
+
 
 def main():
     # to try a different algorithm, just repleace this seater with another
     # class - the class will only be called by seater.find_seats
-    seater = SeatWherever()
-    rr_seater = RoundRobin(TABLES)
-    tight_seater = TightSeating()
+
+    #seater = SeatWherever()
+    #seater = RoundRobin(TABLES)
+    #seater = SmallestAvailable()
+    #seater = TightSeating()
+    seater = SmallParties()
+
     restaurant = Restaurant(TABLES)
 
-    #results = sim_night(restaurant, seater, arrival_func, sample_seated_time, 120)
-    results = sim_night(restaurant, rr_seater, arrival_func, sample_seated_time, 120)
-    #results = sim_night(restaurant, tight_seater, arrival_func, sample_seated_time, 120)
+    metrics = monte_carlo(restaurant, seater, arrival_func, sample_seated_time, OPEN_TIME)
 
-    pprint(results)
-
-    print(calculate_metrics(results))
+    print(metrics)
 
 
 if __name__ == '__main__':

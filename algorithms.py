@@ -1,3 +1,5 @@
+import random
+
 # These are all of the algorithm classes for seating
 # we have to do it as a class becuase sometimes we need to keep track of state
 
@@ -19,11 +21,15 @@ class SeatWherever(SeatingAlgorithm):
     def find_seats(self, to_seat, tables, t):
         tables_used = set()
         pairings = []
+
+        table_order = list(range(len(tables)))
+        random.shuffle(table_order)
+
         for party in to_seat:
-            for table in tables:
-                if table[1] >= party[1] and table[0] not in tables_used:
-                    pairings.append(([table[0]], party))
-                    tables_used.add(table[0])
+            for t in table_order:
+                if tables[t][1] >= party[1] and tables[t][0] not in tables_used:
+                    pairings.append(([tables[t][0]], party))
+                    tables_used.add(tables[t][0])
                     break
 
         return pairings
@@ -58,7 +64,7 @@ class SmallestAvailable(SeatingAlgorithm):
         tables_used = set()
         pairings = []
 
-        table_size = {}
+        table_sizes = {}
         for t in tables:
             if t[1] not in table_sizes:
                 table_sizes[t[1]] = []
@@ -73,12 +79,13 @@ class SmallestAvailable(SeatingAlgorithm):
             seated = False
             s_pos = 0
             while not seated and s_pos < len(sizes):
-                for table in table_size[sizes[s_pos]]:
-                    if table[0] not in tables_used:
-                        pairings.append(([table[0]], party))
-                        tables_used.add(table[0])
-                        seated = True
-                        break
+                if sizes[s_pos] >= party[1]:
+                    for table in table_sizes[sizes[s_pos]]:
+                        if table[0] not in tables_used:
+                            pairings.append(([table[0]], party))
+                            tables_used.add(table[0])
+                            seated = True
+                            break
                 s_pos += 1
 
         return pairings
@@ -116,6 +123,26 @@ class RoundRobin(SeatingAlgorithm):
                         self.last_section = section
                         break
                 section = (section + 1) % (self.max_section)
+
+        return pairings
+
+
+class SmallParties(SeatingAlgorithm):
+
+    def __init__(self):
+        pass
+
+    def find_seats(self, to_seat, tables, t):
+        tables_used = set()
+        pairings = []
+        for party in to_seat:
+            for table in tables:
+                if table[1] >= party[1] and \
+                        party[1] <=5 and \
+                        table[0] not in tables_used:
+                    pairings.append(([table[0]], party))
+                    tables_used.add(table[0])
+                    break
 
         return pairings
 

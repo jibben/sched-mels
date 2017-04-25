@@ -46,7 +46,7 @@ class Restaurant(object):
 
     def add_party(self, tids, party, t):
         assert sum([self.tables[tid][0] for tid in tids]) >= party[1], \
-                "Cannot seat party of size {} at tables {}".format(tids, party[1])
+                "Cannot seat party of size {} at tables {}".format(party[1], tids)
 
         assert all([not self.tables[tid][3] for tid in tids]), \
                 "Not all tables are available!"
