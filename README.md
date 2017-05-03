@@ -1,4 +1,4 @@
-** Production Scheduling Final Porject **
-Elaine MacDonald, Morgan Maccherone, Mitchell Bustillo, Jibben Hillen
+## Production Scheduling Final Project
+###Elaine MacDonald, Morgan Maccherone, Mitchell Bustillo, Jibben Hillen
 
-MAKE MEL'S GREAT AGAIN
+#MAKE MEL'S GREAT AGAIN
