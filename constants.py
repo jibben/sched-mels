@@ -1,4 +1,9 @@
 # in minutes
+PEAK_START = 30
+PEAK_SCALE = 45
+PEAK_END = 90
+PEAK_ARR = 1
+BASE_ARR = 10
 ARR_INTERVAL = 2
 
 # in minutes

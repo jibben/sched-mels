@@ -1,7 +1,7 @@
 import random
 from pprint import pprint
 
-from constants import ARR_INTERVAL, OPEN_TIME, TABLES, SIZE_TO_SEATED, ARRIVAL_TO_SIZE
+from constants import *
 from algorithms import SeatWherever, TightSeating, SmallestAvailable, RoundRobin
 from algorithms import SmallParties, FewestPeople, SmallestCombining
 from restaurant import Restaurant
@@ -22,6 +22,26 @@ def arrival_func(t):
     size = get_size(u)
 
     time = random.expovariate(1.0 / ARR_INTERVAL)
+
+    return (size, time + t)
+
+
+def var_arrival(t):
+    if t <= PEAK_START:
+        l = BASE_ARR
+    elif t <= PEAK_START + PEAK_SCALE:
+        l = BASE_ARR - (t - PEAK_START) / PEAK_SCALE * (BASE_ARR - PEAK_ARR)
+    elif t <= OPEN_TIME - PEAK_END - PEAK_SCALE:
+        l = PEAK_ARR
+    elif t <= OPEN_TIME - PEAK_END:
+        l = PEAK_ARR + (t - (OPEN_TIME - PEAK_END - PEAK_SCALE)) / PEAK_SCALE * (BASE_ARR - PEAK_ARR)
+    else:
+        l = BASE_ARR
+
+    u = random.random()
+    size = get_size(u)
+
+    time = random.expovariate(1.0 / l)
 
     return (size, time + t)
 
@@ -129,7 +149,9 @@ def calculate_metrics(results):
         'parties_seated' : 0,
         'avg_wait_time' : 0,
         'people_dropped' : 0,
-        'parties_dropped' : 0
+        'parties_dropped' : 0,
+        'parties_with_wait' : 0,
+        'parties_without_wait' : 0,
     }
 
     sum_wait_time = 0.0
@@ -141,9 +163,14 @@ def calculate_metrics(results):
         else:
             metrics['people_seated'] += v['party_size']
             metrics['parties_seated'] += 1
-            sum_wait_time += (v['s_time'] - v['a_time'])
 
-    metrics['avg_wait_time'] = sum_wait_time / metrics['people_seated']
+            if v['s_time'] - v['a_time'] == 0:
+                metrics['parties_without_wait'] += 1
+            else:
+                sum_wait_time += (v['s_time'] - v['a_time'])
+                metrics['parties_with_wait'] += 1
+
+    metrics['avg_wait_time'] = sum_wait_time / metrics['parties_with_wait']
     return metrics
 
 
@@ -153,7 +180,9 @@ def monte_carlo(restaurant, seater, arrival_func, sample_seated_time, t_max, n=1
         'parties_seated' : 0,
         'avg_wait_time' : 0,
         'people_dropped' : 0,
-        'parties_dropped' : 0
+        'parties_dropped' : 0,
+        'parties_with_wait' : 0,
+        'parties_without_wait' : 0,
     }
 
     for i in range(n):
@@ -184,7 +213,7 @@ def main():
 
     restaurant = Restaurant(TABLES)
 
-    metrics = monte_carlo(restaurant, seater, arrival_func, sample_seated_time, OPEN_TIME)
+    metrics = monte_carlo(restaurant, seater, var_arrival, sample_seated_time, OPEN_TIME)
 
     pprint(metrics)
 
