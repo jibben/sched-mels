@@ -9,6 +9,9 @@ ARR_INTERVAL = 2
 # in minutes
 OPEN_TIME = 360
 
+# average waiting
+RENEGE_RATE = 0.6 * 60
+
 SIZE_TO_SEATED = { # in hours
         2 : (1.1, 0.15),
         3 : (1.2, 0.2),

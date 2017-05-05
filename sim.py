@@ -46,7 +46,11 @@ def var_arrival(t):
     return (size, time + t)
 
 
-def sim_night(restaurant, seater, arrival_func, seated_time_func, t_max):
+def renege_time(t):
+    return random.expovariate(1.0 / RENEGE_RATE) + t
+
+
+def sim_night(restaurant, seater, arrival_func, seated_time_func, renege_func, t_max):
     next_arrival = arrival_func(0)
     next_departure = restaurant.get_next_departure()
     to_seat = []
@@ -61,16 +65,24 @@ def sim_night(restaurant, seater, arrival_func, seated_time_func, t_max):
         if next_arrival[1] <= next_departure:
             # update time
             t = next_arrival[1]
-            to_seat.append((pid, next_arrival[0], seated_time_func(next_arrival[0])))
+            to_seat.append((pid, next_arrival[0], seated_time_func(next_arrival[0]), renege_func(t)))
             party_log[pid] = {
                 'party_size' : next_arrival[0],
                 'a_time' : t,
                 's_time' : -1,
                 'd_time' : -1,
+                'r_time' : -1
             }
             pid += 1
             # get next arrival
             next_arrival = arrival_func(t)
+
+            # let people leave the queue
+            for p in to_seat:
+                if p[3] < t:
+                    party_log[p[0]]['r_time'] = p[3]
+
+            to_seat = [p for p in to_seat if next_arrival[1] < p[3]]
 
             # process people who coculd be seated
             pairings = seater.find_seats(to_seat, restaurant.get_available_tables(), t)
@@ -94,6 +106,13 @@ def sim_night(restaurant, seater, arrival_func, seated_time_func, t_max):
             party = restaurant.do_departure()
 
             party_log[party[0]]['d_time'] = t
+
+            # let people leave the queue
+            for p in to_seat:
+                if p[3] < t:
+                    party_log[p[0]]['r_time'] = p[3]
+
+            to_seat = [p for p in to_seat if next_departure < p[3]]
 
             # process people who coculd be seated
             pairings = seater.find_seats(to_seat, restaurant.get_available_tables(), t)
@@ -120,21 +139,6 @@ def sim_night(restaurant, seater, arrival_func, seated_time_func, t_max):
         party = restaurant.do_departure()
         party_log[party[0]]['d_time'] = t
 
-        '''
-        if to_seat:
-            # process people who coculd be seated
-            pairings = seater.find_seats(to_seat, restaurant.get_available_tables(), t)
-
-            # and we will try to seat parties and remove then from to_seat
-            seated = set()
-            for tid, party in pairings:
-                seated.add(party[0])
-                party_log[party[0]]['s_time'] = t
-                restaurant.add_party(tid, party, t)
-
-            to_seat = [p for p in to_seat if p[0] not in seated]
-        '''
-
         # update time of next departure
         next_departure = restaurant.get_next_departure()
 
@@ -160,6 +164,7 @@ def calculate_metrics(results):
         if v['s_time'] == -1:
             metrics['people_dropped'] += v['party_size']
             metrics['parties_dropped'] += 1
+
         else:
             metrics['people_seated'] += v['party_size']
             metrics['parties_seated'] += 1
@@ -170,11 +175,13 @@ def calculate_metrics(results):
                 sum_wait_time += (v['s_time'] - v['a_time'])
                 metrics['parties_with_wait'] += 1
 
-    metrics['avg_wait_time'] = sum_wait_time / metrics['parties_with_wait']
+    if sum_wait_time > 0:
+        metrics['avg_wait_time'] = sum_wait_time / metrics['parties_with_wait']
+
     return metrics
 
 
-def monte_carlo(restaurant, seater, arrival_func, sample_seated_time, t_max, n=100):
+def monte_carlo(restaurant, seater, arrival_func, sample_seated_time, renege_func, t_max, n=200):
     metrics = {
         'people_seated' : 0,
         'parties_seated' : 0,
@@ -186,7 +193,7 @@ def monte_carlo(restaurant, seater, arrival_func, sample_seated_time, t_max, n=1
     }
 
     for i in range(n):
-        results = sim_night(restaurant, seater, arrival_func, sample_seated_time, t_max)
+        results = sim_night(restaurant, seater, arrival_func, sample_seated_time, renege_func, t_max)
         met = calculate_metrics(results)
 
         for k in metrics.keys():
@@ -200,23 +207,25 @@ def monte_carlo(restaurant, seater, arrival_func, sample_seated_time, t_max, n=1
 
 
 def main():
-    # to try a different algorithm, just repleace this seater with another
+    # to try a different algorithm, just replace seater with another
     # class - the class will only be called by seater.find_seats
 
-    #seater = SeatWherever()
-    #seater = RoundRobin(TABLES)
-    #seater = SmallestAvailable()
-    #seater = TightSeating()
-    #seater = SmallParties()
-    #seater = FewestPeople(TABLES)
-    seater = SmallestCombining(TABLES, 6)
+    seaters = {
+            #'seat_wherever' : SeatWherever(),
+            #'round_robin' : RoundRobin(TABLES),
+            #'smallest_available' : SmallestAvailable(),
+            #'tight_seating' : TightSeating(),
+            #'only_small' : SmallParties(),
+            #'fewest_people' : FewestPeople(TABLES),
+            'combining' : SmallestCombining(TABLES, 6),
+    }
 
     restaurant = Restaurant(TABLES)
 
-    metrics = monte_carlo(restaurant, seater, var_arrival, sample_seated_time, OPEN_TIME)
-
-    pprint(metrics)
-
+    for name, seater in seaters.items():
+        print('\n{}\n'.format(name))
+        restaurant = Restaurant(TABLES)
+        pprint(monte_carlo(restaurant, seater, var_arrival, sample_seated_time, renege_time, OPEN_TIME))
 
 if __name__ == '__main__':
     main()
